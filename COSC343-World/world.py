@@ -14,6 +14,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 import random
+from scipy import stats
 
 # You can change this number to specify how many generations creatures are going to evolve over...
 numGenerations = 700
@@ -26,7 +27,7 @@ numTurns = 100
 worldType = 2
 
 # You can change this number to change the world size 24
-gridSize = 24
+gridSize = 48
 
 # You can set this mode to True to have same initial conditions for each simulation in each generation.  Good
 # for development, when you want to have some determinism in how the world runs from generatin to generation.
@@ -36,6 +37,7 @@ repeatableMode = False
 # basic functionality of the creature for the world simulation.  Your job is to implement the AgentFunction
 # that controls creature's behavoiur by producing actions in respons to percepts.
 
+average_fitness = []
 
 class MyCreature(Creature):
 
@@ -68,76 +70,42 @@ class MyCreature(Creature):
         # At the moment the actions is a list of random numbers.  You need to
         # replace this with some model that maps percepts to actions.  The model
         # should be parametrised by the chromosome
-        # actions = np.full(11, 0).tolist()
-        # inv = [8, 7, 6, 5, 4, 3, 2, 1, 0]
-        #
-        # for x in range(len(percepts)):
-        #     if (percepts[x] == 3):
-        #         actions[x] += 0.5
-        #     if (percepts[x] == 1 and x != 4):
-        #         actions[x] -= 0.4
-        #         actions[inv[x]] += 0.4
-        #     if (percepts[x] == 2 and x != 4):
-        #         actions[x] -= self.chromosome[x]
-        # if (percepts[4] == 2):
-        #     actions[9] += 0.6
-        # elif (percepts[4] == 1):
-        #     actions[9] += 0.2
-        # else:
-        #     actions[9] -= self.chromosome[9]
-        #
-        # for p in range(numActions):
-        #     actions[p] += self.chromosome[p]
-        #
-        # return actions
-        percepts_extended = np.zeros(4 * self.totalPercepts, dtype=float)  # OHE representation of the percepts
+        dummy_variables = np.full(4 * self.totalPercepts, 0)
+        x = 0
+        for p in percepts:
+            dummy_variables[x + int(p)] = 1
+            x += 4
+        actions = np.sum((self.chromosome * dummy_variables), axis=1).tolist()
 
-        i = 0
-        k = 0
-        while i < len(percepts):
-            if percepts[i] == 0:
-                percepts_extended[k] = 1
+        return actions
 
-            elif percepts[i] == 1:
-                percepts_extended[k + 1] = 1
-
-            elif percepts[i] == 2:
-                percepts_extended[k + 2] = 1
-
-            elif percepts[i] == 3:
-                percepts_extended[k + 3] = 1
-
-            k += 4
-            i += 1
-
-        actions = np.sum((self.chromosome * percepts_extended), axis=1)  # Using numpy ufunc's for speed
-
-        return actions.tolist()
-
-
-def fitness_fn(turns,energy,isDead):
+def fitness_fn(turns, energy, isDead):
     if (isDead):
         return (3*turns) + energy
     else:
-        return (3*turns) + energy * 2 + 100
+        return (3*turns) + energy + 120
 
+def selection(population, tf, s):
+    scores = []
+    for p in population:
+        scores.append(p.score/tf)
+    return np.random.choice(population, len(population) - s, scores)
 
-def selection(population, tf, i, s):
-    for x in range(len(population)):
-        i[x] = i[x]/tf
-    return np.random.choice(population, len(population) - s, i)
-
-def tournament_selection(population, tf, i ,s):
+def tournament_selection(population,s):
     sample = []
     while (len(sample) < len(population) - s):
-        x = max(np.random.choice(population, 3),key=lambda x: x.score)
-        sample.append(x)
+        sample.append(max(np.random.choice(population, size=4),key=lambda x: x.score))
     return sample
 
-
 def recombine(x, y):
-    s = random.randrange(0, len(x.chromosome))
-    return ([*x.chromosome[:s], *y.chromosome[s:]], [*x.chromosome[:s], *y.chromosome[s:]])
+    s = random.randrange(0, 9)
+    if np.random.choice([True, False]):
+        j = x.chromosome[9:]
+        k = y.chromosome[9:]
+    else:
+        j = y.chromosome[9:]
+        k = x.chromosome[9:]
+    return ([*x.chromosome[:s], *y.chromosome[s:9],*j], [*y.chromosome[:s], *x.chromosome[s:9], *k])
 
 
 def mutate(c, gp, pmut):
@@ -149,28 +117,27 @@ def mutate(c, gp, pmut):
     else:
         return c
 
-    # This function is called after every simulation, passing a list of the old population of creatures, whose fitness
-    # you need to evaluate and whose chromosomes you can use to create new creatures.
-    #
-    # Input: old_population - list of objects of MyCreature type that participated in the last simulation.  You
-    #                         can query the state of the creatures by using some built-in methods as well as any methods
-    #                         you decide to add to MyCreature class.  The length of the list is the size of
-    #                         the population.  You need to generate a new population of the same size.  Creatures from
-    #                         old population can be used in the new population - simulation will reset them to starting
-    #                         state.
-    #
-    # Returns: a list of MyCreature objects of the same length as the old_population.
-
-
+# This function is called after every simulation, passing a list of the old population of creatures, whose fitness
+# you need to evaluate and whose chromosomes you can use to create new creatures.
+#
+# Input: old_population - list of objects of MyCreature type that participated in the last simulation.  You
+#                         can query the state of the creatures by using some built-in methods as well as any methods
+#                         you decide to add to MyCreature class.  The length of the list is the size of
+#                         the population.  You need to generate a new population of the same size.  Creatures from
+#                         old population can be used in the new population - simulation will reset them to starting
+#                         state.
+#
+# Returns: a list of MyCreature objects of the same length as the old_population.
 def newPopulation(old_population):
     global numTurns
+    global average_fitness
 
     nSurvivors = 0
     avgLifeTime = 0
     fitnessScore = 0
     mutationProb = 0.1
-    elitismP = 0.1
-    individualScores = []
+    elitismPercent = 0.05
+    tournamentSelection = True
 
     # For each individual you can extract the following information left over
     # from evaluation to let you figure out how well individual did in the
@@ -195,40 +162,47 @@ def newPopulation(old_population):
             avgLifeTime += numTurns
             timeOfDeath = numTurns
         individual.score = fitness_fn(timeOfDeath,energy,dead)
-        individualScores.append(individual.score)
         fitnessScore += individual.score
 
     # Here are some statistics, which you may or may not find useful
     avgLifeTime = float(avgLifeTime)/float(len(population))
     avgScore = fitnessScore/len(population)
+    average_fitness.append(avgScore)
     print("Simulation stats:")
-    print("  Survivors    : %d out of %d" % (nSurvivors, len(population)))
-    print("  Avg life time: %.1f turns" % avgLifeTime)
-    print("  Avg score: %.1f" % avgScore)
+    print("  Survivors          : %d out of %d" % (nSurvivors, len(population)))
+    print("  Avg life time      : %.1f turns" % avgLifeTime)
+    print("  Avg fitness score  : %.1f" % avgScore)
 
     # The information gathered above should allow you to build a fitness function that evaluates fitness of
     # every creature.  You should show the average fitness, but also use the fitness for selecting parents and
     # creating new creatures.
+
+    #Elitism
     old_population.sort(key=lambda x: x.score, reverse=True)
-    elite_percent = int(elitismP * len(old_population) + (int(elitismP * len(old_population))%2))
+    elite_percent = int(elitismPercent * len(old_population) + (int(elitismPercent * len(old_population))%2))
     elitism = old_population[:elite_percent]
-    p = tournament_selection(old_population, fitnessScore, individualScores, elite_percent)
+
+    #Selection
+    p = tournament_selection(old_population, elite_percent) if tournamentSelection else selection(old_population, fitnessScore, elite_percent)
     p = np.concatenate((elitism,p))
+
+    #Crossover
     newChromosomes = []
     for x, y in zip(p[0::2], p[1::2]):
         children = recombine(x, y)
         newChromosomes.append(children[0])
         newChromosomes.append(children[1])
+
+    #Mutation
     gene_pool = np.array(newChromosomes)
     gene_pool = gene_pool.reshape(-1, gene_pool.shape[-1])
     for x in range(len(newChromosomes)):
         newChromosomes[x] = mutate(newChromosomes[x], gene_pool, mutationProb)
         old_population[x].chromosome = newChromosomes[x]
-    old_population = [*old_population[len(elitism):],*elitism]
     # Based on the fitness you should select individuals for reproduction and create a
     # new population.  At the moment this is not done, and the same population with the same number
     # of individuals
-    new_population = old_population
+    new_population = [*old_population[len(elitism):],*elitism]
 
     return new_population
 
@@ -262,7 +236,7 @@ w.setNextGeneration(population)
 w.evaluate(numTurns)
 
 # Show visualisation of initial creature behaviour
-# w.show_simulation(titleStr='Initial population', speed='normal')
+w.show_simulation(titleStr='Initial population', speed='normal')
 
 for i in range(numGenerations):
     print("\nGeneration %d:" % (i+1))
@@ -279,3 +253,14 @@ for i in range(numGenerations):
     # Show visualisation of final generation
     if i == numGenerations-1:
         w.show_simulation(titleStr='Final population', speed='normal')
+
+xi = np.arange(0,len(average_fitness))
+slope, intercept, r_value, p_value, std_err = stats.linregress(xi,average_fitness)
+line = slope*xi+intercept
+plt.figure(1)
+plt.plot(average_fitness)
+plt.plot(line)
+plt.title("Average Fitness for World {} | Grid:{}".format(worldType, gridSize))
+plt.ylabel("Average Fitness")
+plt.xlabel("Generations")
+plt.show()
