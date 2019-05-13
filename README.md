@@ -7,6 +7,15 @@ A collection of my personal work, findings, and learnings on the subject of Arti
 ### COSC343 Genetic Algorithm
 
 Simulation of creatures that roam the world trying to surving eatting strawberries.
-Implementation:
-Created a genetic algorithm that utilized tournament selection, single-point crossover, and random mutation.
-The agent function contains a one hot encoded array of percepts(monster, creature, food, empty) that maps to the creatures chromosome.
+#### Implementation:
+Genetic algorithm:
+- tournament selection 
+- single-point crossover
+- random mutation
+
+Agent function
+- one hot encoded for percepts(monster, creature, food, empty) 
+- matrix multiplication and suming to map to actions
+
+#### Challanges:
+The learning process was a walk in the dark. I would stumble on one way of doing something, and the next couple trails lead me in a different direction. This was the first genetic algorithm I've implemented so all of it was new to me other than some machine learning concepts which I vaguely understood before.
