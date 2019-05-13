@@ -80,24 +80,69 @@ class MyCreature(Creature):
         return actions
 
 def fitness_fn(turns, energy, isDead):
+    """Fitness function that scores based on turns and energy.
+
+    Provides a score to a creature, with 3 times the amount of turns
+    plus the energy, with a bonus for surviving.
+
+    Args:
+        turns: number of turns a creature survived.
+        energy: amount of energy left after simulation.
+        isDead: boolean of death state.
+    Returns:
+        int: score based on function calculation
+    """
     if (isDead):
         return (3*turns) + energy
     else:
         return (3*turns) + energy + 120
 
 def selection(population, tf, s):
+    """Roulette Selection
+
+    Normalises all scores to (0,1) giving us a probability to select
+    based on.
+
+    Args:
+        population: creature objects.
+        tf: total fitness scores combined.
+        s: size of the elite population.
+    Returns:
+        Object: array of randomly chosen creatures based on the probabilities.
+    """
     scores = []
     for p in population:
         scores.append(p.score/tf)
     return np.random.choice(population, len(population) - s, scores)
 
 def tournament_selection(population,s):
+    """Tournament Selection
+
+    Continually selects the top scoring creature in a set of 4.
+
+    Args:
+        population: creature objects.
+        s: size of the elite population.
+    Returns:
+        Object: array of chosen creatures based on the top scores in small samples.
+    """
     sample = []
     while (len(sample) < len(population) - s):
         sample.append(max(np.random.choice(population, size=4),key=lambda x: x.score))
     return sample
 
 def recombine(x, y):
+    """Recombines parent chromosome
+
+    Takes two parent chromosome, and using crossover selects a point within the first
+    9 indexes randomly, and creates a creature with both sides of either parents points.
+
+    Args:
+        x: parent creature.
+        s: parent creature.
+    Returns:
+        Object: tuple of two arrays based on parent chromosomes.
+    """
     s = random.randrange(0, 9)
     if np.random.choice([True, False]):
         j = x.chromosome[9:]
@@ -107,8 +152,19 @@ def recombine(x, y):
         k = x.chromosome[9:]
     return ([*x.chromosome[:s], *y.chromosome[s:9],*j], [*y.chromosome[:s], *x.chromosome[s:9], *k])
 
-
 def mutate(c, gp, pmut):
+    """Mutation of chromosome
+
+    Based on the probability to mutate, it selects a random gene to change. It selects
+    a random other creature to take a new gene from a gene pool.
+
+    Args:
+        c: creature's chromosme to be changed.
+        gp: gene pool to select from.
+        pmut: probability of mutation.
+    Returns:
+        Array(float): changed array with mutation if condition passed, else returned unchanged chromsome.
+    """
     if(np.random.choice([True, False], p=[pmut, 1-pmut])):
         s = random.randrange(0, len(c))
         new_gene = gp[random.randrange(0, len(gp))]
@@ -254,6 +310,7 @@ for i in range(numGenerations):
     if i == numGenerations-1:
         w.show_simulation(titleStr='Final population', speed='normal')
 
+#Plotting with a linear regression.
 xi = np.arange(0,len(average_fitness))
 slope, intercept, r_value, p_value, std_err = stats.linregress(xi,average_fitness)
 line = slope*xi+intercept
