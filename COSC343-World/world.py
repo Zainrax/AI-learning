@@ -17,7 +17,7 @@ import random
 from scipy import stats
 
 # You can change this number to specify how many generations creatures are going to evolve over...
-numGenerations = 700
+numGenerations = 100
 
 # You can change this number to specify how many turns in simulation of the world for given generation
 numTurns = 100
