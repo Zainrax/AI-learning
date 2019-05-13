@@ -4,7 +4,7 @@ A collection of my personal work, findings, and learnings on the subject of Arti
 
 
 ## Projects
-### COSC343 Genetic Algorithm
+### [COSC343 Genetic Algorithm](COSC343-World)
 
 Simulation of creatures that roam the world trying to surving eatting strawberries.
 #### Implementation:
